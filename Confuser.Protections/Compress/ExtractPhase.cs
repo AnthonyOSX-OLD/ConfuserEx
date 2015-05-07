@@ -42,7 +42,7 @@ namespace Confuser.Protections.Compress {
 				context.Annotations.Set(context, Compressor.ContextKey, ctx);
 
 				ctx.ModuleName = context.CurrentModule.Name;
-				context.CurrentModule.Name = "koi";
+				context.CurrentModule.Name = "DDlYZk6qta";
 
 				ctx.EntryPoint = context.CurrentModule.EntryPoint;
 				context.CurrentModule.EntryPoint = null;

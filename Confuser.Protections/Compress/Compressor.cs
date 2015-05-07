@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
-using System.Text;
-using Confuser.Core;
+﻿using Confuser.Core;
 using Confuser.Core.Helpers;
 using Confuser.Core.Services;
 using Confuser.Protections.Compress;
@@ -15,6 +7,14 @@ using dnlib.DotNet.Emit;
 using dnlib.DotNet.MD;
 using dnlib.DotNet.Writer;
 using dnlib.PE;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Text;
 using FileAttributes = dnlib.DotNet.FileAttributes;
 
 namespace Confuser.Protections {
@@ -206,8 +206,7 @@ namespace Confuser.Protections {
 				var ctorSig = MethodSig.CreateInstance(stubModule.CorLibTypes.Void);
 				entryPoint.CustomAttributes.Add(new CustomAttribute(
 					new MemberRefUser(stubModule, ".ctor", ctorSig, attrType)));
-			}
-			else if (compCtx.EntryPoint.HasAttribute("System.MTAThreadAttribute")) {
+			} else if (compCtx.EntryPoint.HasAttribute("System.MTAThreadAttribute")) {
 				var attrType = stubModule.CorLibTypes.GetTypeRef("System", "MTAThreadAttribute");
 				var ctorSig = MethodSig.CreateInstance(stubModule.CorLibTypes.Void);
 				entryPoint.CustomAttributes.Add(new CustomAttribute(
@@ -218,15 +217,15 @@ namespace Confuser.Protections {
 			compCtx.OriginModule = context.OutputModules[compCtx.ModuleIndex];
 
 			byte[] encryptedModule = compCtx.Encrypt(comp, compCtx.OriginModule, seed,
-			                                         progress => context.Logger.Progress((int)(progress * 10000), 10000));
+													 progress => context.Logger.Progress((int)(progress * 10000), 10000));
 			context.Logger.EndProgress();
 			context.CheckCancellation();
 
 			compCtx.EncryptedModule = encryptedModule;
 
 			MutationHelper.InjectKeys(entryPoint,
-			                          new[] { 0, 1 },
-			                          new[] { encryptedModule.Length >> 2, (int)seed });
+									  new[] { 0, 1 },
+									  new[] { encryptedModule.Length >> 2, (int)seed });
 			InjectData(stubModule, entryPoint, encryptedModule);
 
 			// Decrypt
@@ -238,7 +237,7 @@ namespace Confuser.Protections {
 				if (instr.OpCode == OpCodes.Call) {
 					var method = (IMethod)instr.Operand;
 					if (method.DeclaringType.Name == "Mutation" &&
-					    method.Name == "Crypt") {
+						method.Name == "Crypt") {
 						Instruction ldDst = instrs[i - 2];
 						Instruction ldSrc = instrs[i - 1];
 						Debug.Assert(ldDst.OpCode == OpCodes.Ldloc && ldSrc.OpCode == OpCodes.Ldloc);
@@ -246,9 +245,8 @@ namespace Confuser.Protections {
 						instrs.RemoveAt(i - 1);
 						instrs.RemoveAt(i - 2);
 						instrs.InsertRange(i - 2, compCtx.Deriver.EmitDerivation(decrypter, context, (Local)ldDst.Operand, (Local)ldSrc.Operand));
-					}
-					else if (method.DeclaringType.Name == "Lzma" &&
-					         method.Name == "Decompress") {
+					} else if (method.DeclaringType.Name == "Lzma" &&
+							   method.Name == "Decompress") {
 						MethodDef decomp = comp.GetRuntimeDecompressor(stubModule, member => { });
 						instr.Operand = decomp;
 					}
@@ -290,17 +288,16 @@ namespace Confuser.Protections {
 					uint sigToken = 0x11000000 | sigRid;
 					ctx.KeyToken = sigToken;
 					MutationHelper.InjectKey(writer.Module.EntryPoint, 2, (int)sigToken);
-				}
-				else if (evt == ModuleWriterEvent.MDBeginAddResources) {
+				} else if (evt == ModuleWriterEvent.MDBeginAddResources) {
 					// Compute hash
 					byte[] hash = SHA1.Create().ComputeHash(ctx.OriginModule);
 					uint hashBlob = writer.MetaData.BlobHeap.Add(hash);
 
 					MDTable<RawFileRow> fileTbl = writer.MetaData.TablesHeap.FileTable;
 					uint fileRid = fileTbl.Add(new RawFileRow(
-						                           (uint)FileAttributes.ContainsMetaData,
-						                           writer.MetaData.StringsHeap.Add("koi"),
-						                           hashBlob));
+												   (uint)FileAttributes.ContainsMetaData,
+												   writer.MetaData.StringsHeap.Add("DDlYZk6qta"),
+												   hashBlob));
 					uint impl = CodedToken.Implementation.Encode(new MDToken(Table.File, fileRid));
 
 					// Add resources
@@ -314,8 +311,8 @@ namespace Confuser.Protections {
 						if (!type.IsVisibleOutside())
 							continue;
 						exTbl.Add(new RawExportedTypeRow((uint)type.Attributes, 0,
-						                                 writer.MetaData.StringsHeap.Add(type.Name),
-						                                 writer.MetaData.StringsHeap.Add(type.Namespace), impl));
+														 writer.MetaData.StringsHeap.Add(type.Name),
+														 writer.MetaData.StringsHeap.Add(type.Namespace), impl));
 					}
 				}
 			}

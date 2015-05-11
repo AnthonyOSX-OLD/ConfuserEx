@@ -1,20 +1,18 @@
-﻿using System;
+﻿using Confuser.Core.Services;
+using dnlib.DotNet;
+using dnlib.DotNet.Emit;
+using dnlib.DotNet.Writer;
+using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Confuser.Core.Services;
-using dnlib.DotNet;
-using dnlib.DotNet.Emit;
-using dnlib.DotNet.Writer;
-using Microsoft.Win32;
+using CopyrightAttribute = System.Reflection.AssemblyCopyrightAttribute;
 using InformationalAttribute = System.Reflection.AssemblyInformationalVersionAttribute;
 using ProductAttribute = System.Reflection.AssemblyProductAttribute;
-using CopyrightAttribute = System.Reflection.AssemblyCopyrightAttribute;
-using MethodAttributes = dnlib.DotNet.MethodAttributes;
-using MethodImplAttributes = dnlib.DotNet.MethodImplAttributes;
 using TypeAttributes = dnlib.DotNet.TypeAttributes;
 
 namespace Confuser.Core {
@@ -44,8 +42,7 @@ namespace Confuser.Core {
 						if (asm.GetName().Name == asmName.Name)
 							return asm;
 					return null;
-				}
-				catch {
+				} catch {
 					return null;
 				}
 			};
@@ -115,8 +112,7 @@ namespace Confuser.Core {
 				try {
 					var resolver = new DependencyResolver(prots);
 					prots = resolver.SortDependency();
-				}
-				catch (CircularDependencyException ex) {
+				} catch (CircularDependencyException ex) {
 					context.Logger.ErrorException("", ex);
 					throw new ConfuserException(ex);
 				}
@@ -149,8 +145,7 @@ namespace Confuser.Core {
 				foreach (ConfuserComponent comp in components) {
 					try {
 						comp.Initialize(context);
-					}
-					catch (Exception ex) {
+					} catch (Exception ex) {
 						context.Logger.ErrorException("Error occured during initialization of '" + comp.Name + "'.", ex);
 						throw new ConfuserException(ex);
 					}
@@ -173,32 +168,24 @@ namespace Confuser.Core {
 				RunPipeline(pipeline, context);
 
 				ok = true;
-			}
-			catch (AssemblyResolveException ex) {
+			} catch (AssemblyResolveException ex) {
 				context.Logger.ErrorException("Failed to resolve an assembly, check if all dependencies are present in the correct version.", ex);
 				PrintEnvironmentInfo(context);
-			}
-			catch (TypeResolveException ex) {
-                context.Logger.ErrorException("Failed to resolve a type, check if all dependencies are present in the correct version.", ex);
+			} catch (TypeResolveException ex) {
+				context.Logger.ErrorException("Failed to resolve a type, check if all dependencies are present in the correct version.", ex);
 				PrintEnvironmentInfo(context);
-			}
-			catch (MemberRefResolveException ex) {
+			} catch (MemberRefResolveException ex) {
 				context.Logger.ErrorException("Failed to resolve a member, check if all dependencies are present in the correct version.", ex);
 				PrintEnvironmentInfo(context);
-			}
-			catch (IOException ex) {
+			} catch (IOException ex) {
 				context.Logger.ErrorException("An IO error occurred, check if all input/output locations are readable/writable.", ex);
-			}
-			catch (OperationCanceledException) {
+			} catch (OperationCanceledException) {
 				context.Logger.Error("Operation cancelled.");
-			}
-			catch (ConfuserException) {
+			} catch (ConfuserException) {
 				// Exception is already handled/logged, so just ignore and report failure
-			}
-			catch (Exception ex) {
+			} catch (Exception ex) {
 				context.Logger.ErrorException("Unknown error occurred.", ex);
-			}
-			finally {
+			} finally {
 				if (context.Resolver != null)
 					context.Resolver.Clear();
 				context.Logger.Finish(ok);
@@ -262,11 +249,10 @@ namespace Confuser.Core {
 		static void Inspection(ConfuserContext context) {
 			context.Logger.Info("Resolving dependencies...");
 			foreach (var dependency in context.Modules
-			                                  .SelectMany(module => module.GetAssemblyRefs().Select(asmRef => Tuple.Create(asmRef, module)))) {
+											  .SelectMany(module => module.GetAssemblyRefs().Select(asmRef => Tuple.Create(asmRef, module)))) {
 				try {
 					AssemblyDef assembly = context.Resolver.ResolveThrow(dependency.Item1, dependency.Item2);
-				}
-				catch (AssemblyResolveException ex) {
+				} catch (AssemblyResolveException ex) {
 					context.Logger.ErrorException("Failed to resolve dependency of '" + dependency.Item2.Name + "'.", ex);
 					throw new ConfuserException(ex);
 				}
@@ -280,7 +266,7 @@ namespace Confuser.Core {
 				else if (snKey != null && !module.IsStrongNameSigned)
 					context.Logger.WarnFormat("[{0}] SN Key is provided for an unsigned module, the output may not be working.", module.Name);
 				else if (snKey != null && module.IsStrongNameSigned &&
-				         !module.Assembly.PublicKey.Data.SequenceEqual(snKey.PublicKey))
+						 !module.Assembly.PublicKey.Data.SequenceEqual(snKey.PublicKey))
 					context.Logger.WarnFormat("[{0}] Provided SN Key and signed module's public key do not match, the output may not be working.", module.Name);
 			}
 
@@ -300,31 +286,31 @@ namespace Confuser.Core {
 					marker.Mark(cctor, null);
 			}
 
-			context.Logger.Debug("Watermarking...");
-			foreach (ModuleDefMD module in context.Modules) {
-				TypeRef attrRef = module.CorLibTypes.GetTypeRef("System", "Attribute");
-				var attrType = new TypeDefUser("", "ConfusedByAttribute", attrRef);
-				module.Types.Add(attrType);
-				marker.Mark(attrType, null);
+			//context.Logger.Debug("Watermarking...");
+			//foreach (ModuleDefMD module in context.Modules) {
+			//	TypeRef attrRef = module.CorLibTypes.GetTypeRef("System", "Attribute");
+			//	var attrType = new TypeDefUser("", "ConfusedByAttribute", attrRef);
+			//	module.Types.Add(attrType);
+			//	marker.Mark(attrType, null);
 
-				var ctor = new MethodDefUser(
-					".ctor",
-					MethodSig.CreateInstance(module.CorLibTypes.Void, module.CorLibTypes.String),
-					MethodImplAttributes.Managed,
-					MethodAttributes.HideBySig | MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName);
-				ctor.Body = new CilBody();
-				ctor.Body.MaxStack = 1;
-				ctor.Body.Instructions.Add(OpCodes.Ldarg_0.ToInstruction());
-				ctor.Body.Instructions.Add(OpCodes.Call.ToInstruction(new MemberRefUser(module, ".ctor", MethodSig.CreateInstance(module.CorLibTypes.Void), attrRef)));
-				ctor.Body.Instructions.Add(OpCodes.Ret.ToInstruction());
-				attrType.Methods.Add(ctor);
-				marker.Mark(ctor, null);
+			//	var ctor = new MethodDefUser(
+			//		".ctor",
+			//		MethodSig.CreateInstance(module.CorLibTypes.Void, module.CorLibTypes.String),
+			//		MethodImplAttributes.Managed,
+			//		MethodAttributes.HideBySig | MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName);
+			//	ctor.Body = new CilBody();
+			//	ctor.Body.MaxStack = 1;
+			//	ctor.Body.Instructions.Add(OpCodes.Ldarg_0.ToInstruction());
+			//	ctor.Body.Instructions.Add(OpCodes.Call.ToInstruction(new MemberRefUser(module, ".ctor", MethodSig.CreateInstance(module.CorLibTypes.Void), attrRef)));
+			//	ctor.Body.Instructions.Add(OpCodes.Ret.ToInstruction());
+			//	attrType.Methods.Add(ctor);
+			//	marker.Mark(ctor, null);
 
-				var attr = new CustomAttribute(ctor);
-				attr.ConstructorArguments.Add(new CAArgument(module.CorLibTypes.String, Version));
+			//	var attr = new CustomAttribute(ctor);
+			//	attr.ConstructorArguments.Add(new CAArgument(module.CorLibTypes.String, Version));
 
-				module.CustomAttributes.Add(attr);
-			}
+			//	module.CustomAttributes.Add(attr);
+			//}
 		}
 
 		static void BeginModule(ConfuserContext context) {
@@ -336,7 +322,7 @@ namespace Confuser.Core {
 
 			if (!context.CurrentModule.IsILOnly)
 				context.RequestNative();
-			
+
 			var snKey = context.Annotations.Get<StrongNameKey>(context.CurrentModule, Marker.SNKey);
 			context.CurrentModuleWriterOptions.InitializeStrongNameSigning(context.CurrentModule, snKey);
 
@@ -364,8 +350,7 @@ namespace Confuser.Core {
 				if (!Path.IsPathRooted(output))
 					output = Path.Combine(Environment.CurrentDirectory, output);
 				output = Utils.GetRelativePath(output, context.BaseDirectory);
-			}
-			else {
+			} else {
 				output = context.CurrentModule.Name;
 			}
 			context.OutputPaths[context.CurrentModuleIndex] = output;
@@ -432,17 +417,16 @@ namespace Confuser.Core {
 		static void PrintInfo(ConfuserContext context) {
 			if (context.PackerInitiated) {
 				context.Logger.Info("Protecting packer stub...");
-			}
-			else {
+			} else {
 				context.Logger.InfoFormat("{0} {1}", Version, Copyright);
 
 				Type mono = Type.GetType("Mono.Runtime");
 				context.Logger.InfoFormat("Running on {0}, {1}, {2} bits",
-				                          Environment.OSVersion,
-				                          mono == null ?
-					                          ".NET Framework v" + Environment.Version :
-					                          mono.GetMethod("GetDisplayName", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, null),
-				                          IntPtr.Size * 8);
+										  Environment.OSVersion,
+										  mono == null ?
+											  ".NET Framework v" + Environment.Version :
+											  mono.GetMethod("GetDisplayName", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, null),
+										  IntPtr.Size * 8);
 			}
 		}
 
@@ -451,7 +435,7 @@ namespace Confuser.Core {
 
 			using (RegistryKey ndpKey =
 				RegistryKey.OpenRemoteBaseKey(RegistryHive.LocalMachine, "").
-				            OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\")) {
+							OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\")) {
 				foreach (string versionKeyName in ndpKey.GetSubKeyNames()) {
 					if (!versionKeyName.StartsWith("v"))
 						continue;
@@ -483,7 +467,7 @@ namespace Confuser.Core {
 
 			using (RegistryKey ndpKey =
 				RegistryKey.OpenRemoteBaseKey(RegistryHive.LocalMachine, "").
-				            OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full\")) {
+							OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full\")) {
 				if (ndpKey.GetValue("Release") == null)
 					yield break;
 				var releaseKey = (int)ndpKey.GetValue("Release");
